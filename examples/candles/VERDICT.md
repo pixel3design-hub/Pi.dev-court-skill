@@ -37,4 +37,4 @@ My order: do not hand in your notice yet. Keep the paycheck while you gather the
 
 _The full trial is in examples/candles: the opening statements, the rebuttals and every juror's vote._
 
-_Made with [/court](https://github.com/alexyc9381/court-skill), a free Claude Code skill by Alex Chen ([@nocodealex](https://instagram.com/nocodealex))._
+_Made with [/court](https://github.com/alexyc9381/court-skill), a free Pi skill by Alex Chen ([@nocodealex](https://instagram.com/nocodealex))._

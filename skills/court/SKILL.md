@@ -1,14 +1,13 @@
 ---
 name: court
 description: >-
-  Put an idea on trial in front of a jury of 12 Claudes. A prosecutor Claude
-  argues it fails, a defense Claude argues it works, they rebut each other,
-  12 juror Claudes with different backgrounds vote on their own, and a judge
-  Claude reads the verdict and the conditions that would flip it. Use when the
-  user wants honest pushback instead of agreement, says Claude just agrees with
-  everything, asks "is this a good idea", wants an idea, plan, pitch or claim
-  stress-tested, or says "court" or "put it on trial".
-argument-hint: "[--jury N | --quick] [--seed S] <the idea, plan or claim>"
+  Put an idea on trial in front of a jury of 12 sub-agents. A prosecutor argues
+  it fails, a defense argues it works, they rebut each other, 12 jurors with
+  different backgrounds vote on their own, and a judge reads the verdict and
+  the conditions that would flip it. Use when the user wants honest pushback
+  instead of agreement, says the model just agrees with everything, asks "is
+  this a good idea", wants an idea, plan, pitch or claim stress-tested, or says
+  "court" or "put it on trial".
 license: MIT
 metadata:
   author: "Alex Chen (@nocodealex)"
@@ -19,28 +18,31 @@ metadata:
 
 # court
 
-For when Claude agrees with everything you say. Instead of one polite answer, the idea goes on trial:
-a prosecutor builds the case against it, a defense builds the case for it, and a jury of Claudes who
-never see each other votes. You are the clerk of the court. You never argue, never vote, and never
-soften the verdict.
+For when the model agrees with everything you say. Instead of one polite answer, the idea goes on
+trial: a prosecutor builds the case against it, a defense builds the case for it, and a jury of
+sub-agents who never see each other votes. You are the clerk of the court. You never argue, never
+vote, and never soften the verdict.
 
-What the user typed after `/court`: `$ARGUMENTS`
+Usage: `/skill:court [--jury N | --quick] [--seed S] <the idea, plan or claim>`
 
-If that is blank, or still reads like a placeholder, take the case from the conversation: the idea,
-plan or claim the user most recently wanted an opinion on.
+The user's text after `/skill:court` arrives as a request appended to these instructions: that is the
+case. If it is blank, or still reads like a placeholder, take the case from the conversation: the
+idea, plan or claim the user most recently wanted an opinion on.
 
 ## The tool
 
-Every piece of bookkeeping goes through `court.py` in this skill's folder:
+This skill needs Pi with the sub-agents extension: `pi install npm:@tintinweb/pi-subagents`. The `Agent`
+tool comes from it, and without it there is no jury.
+
+Every piece of bookkeeping goes through `court.py` next to this file:
 
 ```bash
-python3 "${CLAUDE_SKILL_DIR}/court.py" <command>
+python3 "<this skill's directory>/court.py" <command>
 ```
 
-Below, `COURT` means exactly that command. If the path looks unexpanded, use the "Base directory for
-this skill" that Claude Code printed at the top of this skill. The state lives in
-`.court/<run>/state.json` in the current directory, and every command after `init` finds it through
-`.court/LATEST`.
+Below, `COURT` means exactly that command. Take "this skill's directory" from the path listed for this
+skill in your system prompt. The state lives in `.court/<run>/state.json` in the current directory,
+and every command after `init` finds it through `.court/LATEST`.
 
 ## Step 1: size it
 
@@ -56,9 +58,8 @@ Run `COURT plan` with the same flags and tell the user in one line how big the t
 "12 jurors, 17 sub-agent calls", then start. If this skill fired on its own (the user never asked for
 a trial), ask once first and offer `--quick`.
 
-Sub-agents write into `.court/` in the current directory. In the default permission mode that is one
-approval per file. Suggest accept-edits mode (Shift+Tab) for the trial. Do not change the user's
-settings yourself.
+Sub-agents write into `.court/` in the current directory. Pi does not ask for approval per tool call;
+check the run folder afterwards rather than changing the user's settings.
 
 ## Step 2: write the case file
 
@@ -85,18 +86,21 @@ exact command. The phases run in this order: `opening`, `rebuttal`, `jury`, `jud
 
 Every phase works the same way:
 
-1. `COURT prompts <phase>` writes one brief per job and lists the jobs still to run, in waves.
-2. Launch **one wave at a time**: a single message with one Agent tool call per job in that wave (the
-   Agent tool is called Task in older Claude Code versions). Each call is:
+1. `COURT prompts <phase>` writes one brief per job and lists the jobs still to run.
+2. Launch the **whole phase in one message**: one Agent tool call per job, all foreground. Each call is:
    - `subagent_type`: `general-purpose`
    - `description`: `court <job id>`
    - `prompt`: `Read <brief path> and follow it exactly. It is your whole brief.`
+   - `run_in_background`: `false`
 
-   Wait until every agent in the wave has replied before you launch the next wave.
-3. After the last wave, run `COURT next`. If an output is missing it sends you back to the same phase,
-   and `prompts` then lists only the missing jobs. Re-run those once. If a juror fails twice, write
-   the single line `NO VOTE` into its file (`COURT check jury` lists it) and move on. Never write a
-   vote, a statement or a judgment yourself.
+   Tool calls in one message run in parallel and a foreground call returns its result inline, so the
+   phase is finished when the slowest agent in it returns. That is 4 blocking rounds for the whole
+   trial (opening, rebuttal, jury, judge), not 17. Launching one job per message, or waiting for a
+   couple of agents before starting the rest, serializes the trial and makes it too slow to use.
+3. After the phase, run `COURT next`. If an output is missing it sends you back to the same phase,
+   and `prompts` then lists only the missing jobs. Re-run only those, the same way. If a juror fails
+   twice, write the single line `NO VOTE` into its file (`COURT check jury` lists it) and move on.
+   Never write a vote, a statement or a judgment yourself.
 
 ## Step 5: the verdict
 

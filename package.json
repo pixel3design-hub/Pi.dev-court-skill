@@ -1,0 +1,26 @@
+{
+  "name": "court-skill",
+  "version": "1.0.0",
+  "description": "Put an idea on trial in front of a jury of 12 sub-agents: a prosecutor, a defense, a jury that votes on its own, and a judge who reads the verdict. A Pi skill.",
+  "license": "MIT",
+  "author": {
+    "name": "Alex Chen",
+    "url": "https://chen.media"
+  },
+  "homepage": "https://chen.media/guides/put-your-idea-on-trial-in-front-of-a-jury-of-12-claudes-how-to-install-the-free-skill",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alexyc9381/court-skill"
+  },
+  "keywords": [
+    "pi-package",
+    "subagents",
+    "multi-agent",
+    "jury",
+    "decision-making",
+    "feedback"
+  ],
+  "pi": {
+    "skills": ["./skills/court"]
+  }
+}

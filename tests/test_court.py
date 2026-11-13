@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -45,12 +47,18 @@ class CourtTest(unittest.TestCase):
 
     def test_briefs_name_their_output_and_the_record(self):
         state = self.open_trial("--jury", "3")
-        court.main(["prompts", "jury"])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            court.main(["prompts", "jury"])
         j = court.jobs(state, "jury")[0]
         text = open(j["brief"]).read()
         self.assertIn(j["output"], text)
         self.assertIn("VOTE: GUILTY or NOT GUILTY", text)
         self.assertIn(os.path.abspath(os.path.join(state["dir"], "rebuttal", "defense.md")), text)
+        # every job is listed so the whole phase can be launched in one parallel message
+        for job in court.jobs(state, "jury"):
+            self.assertIn(job["brief"], buf.getvalue())
+        self.assertIn("ONE message", buf.getvalue())
 
     def test_parse_vote_variants(self):
         v = court.parse_vote("VOTE: NOT GUILTY\nREASON: it pays.\nDECIDING FACT: $8,000\nWOULD FLIP IF: no savings")

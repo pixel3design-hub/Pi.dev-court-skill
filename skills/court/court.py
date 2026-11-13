@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Bookkeeping for the court skill: put an idea on trial in front of a jury of Claudes.
+"""Bookkeeping for the court skill: put an idea on trial in front of a jury of sub-agents.
 
-The skill's orchestrator (Claude) drives the trial with these commands. Every sub-agent reads a
+The skill's orchestrator drives the trial with these commands. Every sub-agent reads a
 brief this script writes and writes one output file; this script checks the files, counts the votes
 and renders the verdict. All state lives in .court/<run>/ in the current directory.
 
@@ -29,8 +29,7 @@ LATEST = os.path.join(ROOT, "LATEST")
 PHASES = ["opening", "rebuttal", "jury", "judge"]
 DEFAULT_JURY = 12
 QUICK_JURY = 6
-WAVE = 6
-CREDIT = ("_Made with [/court](https://github.com/alexyc9381/court-skill), a free Claude Code skill by Alex Chen ([@nocodealex](https://instagram.com/nocodealex))._")
+CREDIT = ("_Made with [/court](https://github.com/alexyc9381/court-skill), a free Pi skill by Alex Chen ([@nocodealex](https://instagram.com/nocodealex))._")
 CHARGE = "The case fails as stated: it should not go ahead the way it is described."
 
 
@@ -64,7 +63,7 @@ def jury_size(args):
         return QUICK_JURY
     n = getattr(args, "jury", None) or DEFAULT_JURY
     if n < 3 or n > 12:
-        sys.exit("court: the jury must be 3 to 12 Claudes")
+        sys.exit("court: the jury must be 3 to 12 jurors")
     return n
 
 
@@ -279,11 +278,10 @@ def cmd_prompts(args):
     if not todo:
         print("court: %s is complete. Run: court.py next" % args.phase)
         return
-    for w in range(0, len(todo), WAVE):
-        print("wave %d:" % (w // WAVE + 1))
-        for j in todo[w:w + WAVE]:
-            print("  %s  brief=%s" % (j["id"], j["brief"]))
-    print("Launch one Agent call per job, one wave at a time. Prompt: "
+    for j in todo:
+        print("  %s  brief=%s" % (j["id"], j["brief"]))
+    print("Launch every job above in ONE message as foreground Agent calls "
+          "(run_in_background=false), so they run in parallel. Prompt: "
           "\"Read <brief> and follow it exactly. It is your whole brief.\"")
 
 
