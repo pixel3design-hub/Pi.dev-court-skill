@@ -9,6 +9,7 @@ Pi port maintained by Cristiano Gariboldo (Pixel3Design), social@pixel3design.it
 original court skill by Alex Chen: https://github.com/alexyc9381/court-skill
 
     python3 court.py plan [--jury N | --quick]
+    python3 court.py figures
     python3 court.py init --case-file PATH [--jury N | --quick] [--seed S] [--force]
     python3 court.py dismiss --reason thin|scattered --note TEXT   (or: --clear)
     python3 court.py next
@@ -17,20 +18,24 @@ original court skill by Alex Chen: https://github.com/alexyc9381/court-skill
     python3 court.py tally
     python3 court.py render
 
-Phases, in order: figures, opening, rebuttal, jury, judge.
+Phases, in order: opening, rebuttal, jury, judge. The arithmetic (`figures`) runs before the trial, so
+its list of missing inputs can drive the questions the clerk asks before opening one.
 """
 import argparse
 import json
 import os
 import random
 import re
+import shutil
 import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = ".court"
 LATEST = os.path.join(ROOT, "LATEST")
-PHASES = ["figures", "opening", "rebuttal", "jury", "judge"]
+PHASES = ["opening", "rebuttal", "jury", "judge"]
+PRETRIAL_MATHS = os.path.join(ROOT, "figures", "maths.md")
+PRETRIAL_MODEL = os.path.join(ROOT, "figures", "model.py")
 DEFAULT_JURY = 12
 QUICK_JURY = 6
 CREDIT = ("_Made with [court](https://github.com/pixel3design-hub/Pi.dev-court-skill) by Cristiano Gariboldo (Pixel3Design), based on [the original court skill](https://github.com/alexyc9381/court-skill)._")
@@ -296,6 +301,21 @@ def cmd_plan(args):
           "sub-agent calls" % (n, n, calls))
 
 
+def cmd_figures(args):
+    """Pre-trial: write the math expert's brief. No trial state, so its missing-inputs list exists
+    before the clerk decides whether to ask, dismiss or try."""
+    os.makedirs(os.path.join(ROOT, "briefs"), exist_ok=True)
+    os.makedirs(os.path.join(ROOT, "figures"), exist_ok=True)
+    job = jobs({"dir": ROOT}, "figures")[0]
+    with open(job["brief"], "w") as f:
+        f.write(brief_text({"dir": ROOT}, "figures", job))
+    print("brief: %s" % job["brief"])
+    print("output: %s" % job["output"])
+    print("Launch one foreground Agent call: \"Read %s and follow it exactly. It is your whole brief.\""
+          % job["brief"])
+    print("Then read its `Not in the record` list: those are the inputs to ask about before init.")
+
+
 def cmd_dismiss(args):
     if args.clear:
         for p in (DISMISSED, DISMISSED_DOC):
@@ -325,6 +345,10 @@ def cmd_init(args):
                  "court.py dismiss --clear" % why)
     if not os.path.exists(args.case_file):
         sys.exit("court: case file not found: %s" % args.case_file)
+    if not os.path.exists(PRETRIAL_MATHS) or os.path.getsize(PRETRIAL_MATHS) == 0:
+        sys.exit("court: no arithmetic yet. Run court.py figures, launch the math expert, then init again")
+    if os.path.getmtime(PRETRIAL_MATHS) < os.path.getmtime(args.case_file):
+        sys.exit("court: the arithmetic is older than the case file. Re-run: court.py figures")
     case = open(args.case_file).read().strip()
     if not case:
         sys.exit("court: the case file is empty")
@@ -338,8 +362,9 @@ def cmd_init(args):
     rng = random.Random(seed)
     jury = jurors[:] if n == len(jurors) else rng.sample(jurors, n)
     rd = os.path.join(ROOT, time.strftime("%Y%m%d-%H%M%S"))
-    for sub in ("briefs", "figures", "opening", "rebuttal", "jury", "judge"):
+    for sub in ("briefs", "opening", "rebuttal", "jury", "judge"):
         os.makedirs(os.path.join(rd, sub), exist_ok=True)
+    shutil.copytree(os.path.join(ROOT, "figures"), os.path.join(rd, "figures"))
     with open(os.path.join(rd, "case.md"), "w") as f:
         f.write(case + "\n")
     state = {"dir": rd, "seed": seed, "jury": jury, "created": time.strftime("%Y-%m-%dT%H:%M:%S")}
@@ -417,14 +442,16 @@ def main(argv=None):
     for name in ("prompts", "check"):
         sp = sub.add_parser(name)
         sp.add_argument("phase", choices=PHASES)
+    sub.add_parser("figures")
     for name in ("next", "tally", "render"):
         sub.add_parser(name)
     args = p.parse_args(argv)
     if not args.cmd:
         p.print_help()
         return 1
-    {"plan": cmd_plan, "init": cmd_init, "dismiss": cmd_dismiss, "prompts": cmd_prompts,
-     "check": cmd_check, "next": cmd_next, "tally": cmd_tally, "render": cmd_render}[args.cmd](args)
+    {"plan": cmd_plan, "init": cmd_init, "figures": cmd_figures, "dismiss": cmd_dismiss,
+     "prompts": cmd_prompts, "check": cmd_check, "next": cmd_next, "tally": cmd_tally,
+     "render": cmd_render}[args.cmd](args)
     return 0
 
 

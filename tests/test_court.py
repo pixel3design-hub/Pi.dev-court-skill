@@ -5,6 +5,7 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -26,7 +27,13 @@ class CourtTest(unittest.TestCase):
         os.chdir(self.old)
         shutil.rmtree(self.tmp)
 
+    def write_maths(self):
+        os.makedirs(".court/figures", exist_ok=True)
+        with open(".court/figures/maths.md", "w") as f:
+            f.write("# The arithmetic\n\n| figure | expression | value | why it matters |\n")
+
     def open_trial(self, *extra):
+        self.write_maths()
         court.main(["init", "--case-file", ".court/case.md", "--seed", "7"] + list(extra))
         return court.load_state()
 
@@ -60,25 +67,46 @@ class CourtTest(unittest.TestCase):
             self.assertIn(job["brief"], buf.getvalue())
         self.assertIn("ONE message", buf.getvalue())
 
-    def test_figures_is_the_first_phase(self):
+    def test_figures_runs_before_the_trial(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            court.main(["figures"])
+        out = buf.getvalue()
+        self.assertIn(os.path.join(".court", "briefs", "figures-maths.md"), out)
+        self.assertIn(os.path.join(".court", "figures", "maths.md"), out)
+        self.assertFalse(os.path.exists(court.LATEST))
+        self.assertIn("Not in the record", open(os.path.join(".court", "briefs", "figures-maths.md")).read())
+
+    def test_init_requires_fresh_arithmetic(self):
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            court.main(["init", "--case-file", ".court/case.md"])
+        self.assertFalse(os.path.exists(court.LATEST))
+        self.write_maths()
+        later = time.time() + 60
+        os.utime(".court/case.md", (later, later))
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            court.main(["init", "--case-file", ".court/case.md"])
+        self.assertFalse(os.path.exists(court.LATEST))
+
+    def test_trial_starts_at_opening_and_copies_the_arithmetic(self):
         state = self.open_trial("--jury", "3")
+
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             court.main(["next"])
-        self.assertIn("next phase: figures", buf.getvalue())
-        jobs = court.jobs(state, "figures")
-        self.assertEqual([j["id"] for j in jobs], ["maths"])
-        self.assertTrue(jobs[0]["output"].endswith(os.path.join("figures", "maths.md")))
+        self.assertIn("next phase: opening", buf.getvalue())
+        self.assertTrue(os.path.exists(os.path.join(state["dir"], "figures", "maths.md")))
 
     def test_figures_brief_owns_the_arithmetic_and_the_others_are_barred(self):
         state = self.open_trial("--jury", "3")
         with contextlib.redirect_stdout(io.StringIO()):
-            for phase in ("figures", "opening", "judge"):
+            court.main(["figures"])
+            for phase in ("opening", "judge"):
                 court.main(["prompts", phase])
-        figures = open(court.jobs(state, "figures")[0]["brief"]).read()
+        figures = open(os.path.join(".court", "briefs", "figures-maths.md")).read()
         opening = open(court.jobs(state, "opening")[0]["brief"]).read()
         judge = open(court.jobs(state, "judge")[0]["brief"]).read()
-        self.assertIn(os.path.abspath(os.path.join(state["dir"], "figures", "model.py")), figures)
+        self.assertIn(os.path.abspath(os.path.join(".court", "figures", "model.py")), figures)
         self.assertIn("Not in the record", figures)
         self.assertIn("exits non-zero", figures)
         self.assertNotIn("Derived numbers", figures)
@@ -87,7 +115,7 @@ class CourtTest(unittest.TestCase):
             self.assertIn(maths, text)
             self.assertIn("Do not compute anything yourself", text)
 
-    def test_render_links_the_arithmetic_when_it_exists(self):
+    def test_render_links_the_arithmetic(self):
         state = self.open_trial("--jury", "3")
         self.write_all(state, "opening", "x")
         self.write_all(state, "rebuttal", "x")
@@ -95,10 +123,9 @@ class CourtTest(unittest.TestCase):
             with open(j["output"], "w") as f:
                 f.write("VOTE: GUILTY\nREASON: x\n")
         self.write_all(state, "judge", "## The sentence\nNo.")
-        self.assertNotIn("The arithmetic:", court.render(state))
-        with open(os.path.join(state["dir"], "figures", "maths.md"), "w") as f:
-            f.write("# The arithmetic\n")
-        self.assertIn("The arithmetic:", court.render(state))
+        text = court.render(state)
+        self.assertIn("The arithmetic:", text)
+        self.assertIn(os.path.join(state["dir"], "figures", "maths.md"), text)
 
     def test_parse_vote_variants(self):
         v = court.parse_vote("VOTE: NOT GUILTY\nREASON: it pays.\nDECIDING FACT: $8,000\nWOULD FLIP IF: no savings")

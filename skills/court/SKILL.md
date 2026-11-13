@@ -61,7 +61,7 @@ Read the flags out of the request. Everything that is not a flag is the case.
 | `--seed S` | Fixes which jurors sit on a smaller jury. Default: random, and recorded. |
 
 Run `COURT plan` with the same flags and tell the user in one line how big the trial is, for example
-"12 jurors, 17 sub-agent calls", then go on to the evidence check. If this skill fired on its own
+"12 jurors, 18 sub-agent calls", then go on to the arithmetic (Step 3). If this skill fired on its own
 (the user never asked for a trial), ask once first and offer `--quick`.
 
 Sub-agents write into `.court/` in the current directory. Pi does not ask for approval per tool call;
@@ -79,14 +79,37 @@ know only what is in the case file, so write `.court/case.md` to stand on its ow
 - Do not add facts the user never gave, and do not write your own opinion of the idea into it. A case
   file that leans one way decides the trial before it starts.
 - Facts only: no totals, margins, forecasts or ratios you worked out yourself. The arithmetic is someone
-  else's job (Step 5, `figures`), and a number you derived in prose is the number that ruins the trial.
+  else's job (Step 3), and a number you derived in prose is the number that ruins the trial.
 - Where a fact the verdict needs is missing, write `NOT PROVIDED` instead of guessing. The evidence
   check in the next step reads those markers.
 
-## Step 3: weigh the evidence
+## Step 3: compute the arithmetic, before any judgement
 
-Before the trial spends 17 sub-agents, check the filing. Read `.court/case.md` once and count what is
-actually evidence: a number, a named source, a result the user already got, a cost, a date, a
+The math expert runs **before** the trial, not inside it, because what it reports decides whether this
+trial should happen at all:
+
+```bash
+COURT figures
+```
+
+It writes `.court/briefs/figures-maths.md` and prints the path. Launch that as one foreground Agent
+call (`subagent_type: general-purpose`, `run_in_background: false`). The agent reads the case file,
+decides which calculations the charge actually needs, writes `.court/figures/model.py` for this case,
+runs it, and publishes `.court/figures/maths.md`: every figure, the expression, the value, why it
+matters, and a `Not in the record` list of the inputs the case does not give. You are the clerk: never
+edit `maths.md` and never do the arithmetic yourself.
+
+Read `maths.md` when it lands. It produces two things the next step needs:
+
+- the figures the jury will be handed (`init` copies this folder into the run folder; every later brief
+  quotes it instead of computing);
+- the `Not in the record` list — the inputs the verdict actually depends on and the case does not
+  supply. That list, not your own impression, decides which questions you ask.
+
+## Step 4: weigh the evidence
+
+Now check the filing against what the arithmetic just exposed. Read `.court/case.md` once and count what
+is actually evidence: a number, a named source, a result the user already got, a cost, a date, a
 constraint they have hit. A wish, a feeling or a plan to find out later is not evidence. The charge
 the evidence has to bear on is always the same: does the case fail as stated, should it not go ahead
 the way it is described?
@@ -108,14 +131,18 @@ What would make it triable: <2 or 3 concrete things to bring back>"
 ```
 
 Show what it printed, add at most two lines of your own, and stop. Dismissing is a verdict here, not a
-failure. When the user comes back with the missing evidence, update `.court/case.md` and run
-`COURT dismiss --clear` before opening the trial.
+failure; name the missing inputs from `figures/maths.md` when they exist, because that is what makes the
+dismissal useful. When the user comes back with the missing evidence, update `.court/case.md`, re-run
+`COURT figures`, and run `COURT dismiss --clear` before opening the trial.
 
-**Ask, incomplete.** A missing fact decides the outcome, so ask before the trial, not after. One
-message, at most 3 questions, each answerable in a line: "What did each candle cost you, all in?" not
-"tell me about your costs". Wait for the answer, write it into `.court/case.md`, and weigh once more.
-If a fact is still missing, write `NOT PROVIDED` next to it in the case file and go on: the jury is
-allowed to weigh the gap, and it is allowed to punish it.
+**Ask, incomplete.** A missing fact decides the outcome, so ask before the trial, not after. The
+questions are the `Not in the record` items that block a figure the charge turns on — the fee, the
+postage, the salary, the sample size — not a generic checklist. One message, at most 3 questions, each
+answerable in a line: "What did each candle cost you, all in?" not "tell me about your costs". Wait for
+the answer, write it into `.court/case.md`, then run `COURT figures` again and launch the math expert
+again, because `init` refuses arithmetic older than the case file. If a fact is still missing after
+that one round, write `NOT PROVIDED` next to it and go on: the jury is allowed to weigh the gap, and it
+is allowed to punish it.
 
 **Dismiss and reorganise, scattered.** The file holds more than one case, or the evidence does not
 touch the charge. Do not run `init`. Dismiss it with the mapping in the note:
@@ -137,27 +164,22 @@ Never invent a fact to save a thin case. `init` refuses a case file with no numb
 result in it at all; if the user insists on a trial anyway, write the gaps into the case file as
 `NOT PROVIDED` and pass `--force`, and say in one line that the verdict rests on an empty record.
 
-## Step 4: open the trial
+## Step 5: open the trial
 
 ```bash
 COURT init --case-file .court/case.md [--jury N | --quick] [--seed S]
 ```
 
-If it exits with "this case was dismissed", the record is still there: clear it with
-`COURT dismiss --clear` once the evidence is in.
+`init` refuses to open a trial without `.court/figures/maths.md`, or with arithmetic older than the
+case file, and copies `figures/` into the run folder so the verdict stays reproducible. If it exits
+with "this case was dismissed", the record is still there: clear it with `COURT dismiss --clear` once
+the evidence is in.
 
-## Step 5: the trial
+## Step 6: the trial
 
 Always drive it with `COURT next`. It reads the files on disk and tells you the next phase and the
-exact command. The phases run in this order: `figures`, `opening`, `rebuttal`, `jury`, `judge`.
-
-**The `figures` phase comes first and computes the arithmetic.** It is one job (the math expert). That
-agent reads the case file, decides which calculations the charge actually needs, writes an
-`figures/model.py` script for this case, runs it, and writes `figures/maths.md`: every figure, the
-expression, the value and why it matters, plus a `Not in the record` list of inputs the case does not
-give. Every later brief points at that file and forbids the other agents to compute; they may run the
-script to check it. You are the clerk: never edit `maths.md`, never do the arithmetic yourself, and
-treat an empty `maths.md` as a missing job and re-run it.
+exact command. The phases run in this order: `opening`, `rebuttal`, `jury`, `judge`. The arithmetic is
+already done: every brief points at `figures/maths.md` and forbids the agents to compute.
 
 Every phase works the same way:
 
@@ -169,15 +191,16 @@ Every phase works the same way:
    - `run_in_background`: `false`
 
    Tool calls in one message run in parallel and a foreground call returns its result inline, so the
-   phase is finished when the slowest agent in it returns. That is 5 blocking rounds for the whole
-   trial (figures, opening, rebuttal, jury, judge), not 18. Launching one job per message, or waiting
-   for a couple of agents before starting the rest, serializes the trial and makes it too slow to use.
+   phase is finished when the slowest agent in it returns. That is 4 blocking rounds for the whole
+   trial (opening, rebuttal, jury, judge) plus the one math pass, not 18 separate waits. Launching one
+   job per message, or waiting for a couple of agents before starting the rest, serializes the trial
+   and makes it too slow to use.
 3. After the phase, run `COURT next`. If an output is missing it sends you back to the same phase,
    and `prompts` then lists only the missing jobs. Re-run only those, the same way. If a juror fails
    twice, write the single line `NO VOTE` into its file (`COURT check jury` lists it) and move on.
    Never write a vote, a statement or a judgment yourself.
 
-## Step 6: the verdict
+## Step 7: the verdict
 
 When `COURT next` says the trial is over:
 
