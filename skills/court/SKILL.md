@@ -10,9 +10,11 @@ description: >-
   "court" or "put it on trial".
 license: MIT
 metadata:
-  author: "Alex Chen (@nocodealex)"
-  homepage: "https://chen.media"
-  source: "https://github.com/alexyc9381/court-skill"
+  author: "Cristiano Gariboldo (Pixel3Design)"
+  email: "social@pixel3design.it"
+  homepage: "https://pixel3design.it"
+  source: "https://github.com/pixel3design-hub/Pi.dev-court-skill"
+  based-on: "https://github.com/alexyc9381/court-skill"
   version: "1.0.0"
 ---
 
@@ -121,3 +123,9 @@ Rules for you, the clerk:
 - Never add praise the jury did not give.
 - If the user disagrees with the verdict, offer a retrial with the changes from "Conditions for
   acquittal" written into a new case file. Do not argue for either side yourself.
+
+---
+
+Pi port by Cristiano Gariboldo (Pixel3Design), social@pixel3design.it. Derived from the original
+court skill by Alex Chen: https://github.com/alexyc9381/court-skill. Same trial, same charge, same
+verdict format; only the orchestration is Pi's.

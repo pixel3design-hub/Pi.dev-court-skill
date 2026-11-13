@@ -1,18 +1,20 @@
 cff-version: 1.2.0
-message: "If you show this in a video, post, article or paper, please credit it as below and tag @nocodealex."
+message: "If you show this in a video, post, article or paper, please credit it as below and mention the original court skill it derives from."
 type: software
-title: "court-skill: put your idea on trial in front of a jury of 12 sub-agents"
-abstract: "A free Pi skill that puts an idea on trial: a prosecutor sub-agent, a defense sub-agent, a jury of 12 sub-agents who vote on their own, and a judge who reads the verdict and what would flip it."
+title: "Pi court skill: put your idea on trial in front of a jury of 12 sub-agents"
+abstract: "A Pi port of the original court skill: a prosecutor sub-agent, a defense sub-agent, a jury of 12 sub-agents who vote on their own, and a judge who reads the verdict and what would flip it. Derived from the Claude Code court skill by Alex Chen."
 authors:
-  - given-names: Alex
-    family-names: Chen
-    alias: nocodealex
-    website: "https://chen.media"
-repository-code: "https://github.com/alexyc9381/court-skill"
-url: "https://chen.media/guides/put-your-idea-on-trial-in-front-of-a-jury-of-12-claudes-how-to-install-the-free-skill"
+  - given-names: Cristiano
+    family-names: Gariboldo
+    name-particle: ""
+    alias: pixel3design
+    email: "social@pixel3design.it"
+    website: "https://pixel3design.it"
+repository-code: "https://github.com/pixel3design-hub/Pi.dev-court-skill"
+url: "https://github.com/pixel3design-hub/Pi.dev-court-skill"
 license: MIT
 version: "1.0.0"
-date-released: "2026-10-03"
+date-released: "2026-11-13"
 keywords:
   - pi
   - pi-package
@@ -20,3 +22,11 @@ keywords:
   - multi-agent
   - jury
   - decision-making
+  - feedback
+references:
+  - type: software
+    title: "court-skill: put your idea on trial in front of a jury of 12 Claudes (original Claude Code skill)"
+    repository-code: "https://github.com/alexyc9381/court-skill"
+    authors:
+      - given-names: Alex
+        family-names: Chen

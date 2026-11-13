@@ -1,9 +1,9 @@
-# The court skill
+# The court skill (Pi)
 
 When your model agrees with everything you say, put your idea on trial in front of a jury of 12
 sub-agents. One [Pi](https://pi.dev) skill. Free, MIT, no signup, no API key, nothing to connect.
 
-Made by **Alex Chen** ([@nocodealex](https://instagram.com/nocodealex)), an AI creator who builds free agent skills. Step-by-step guide at [chen.media](https://chen.media/guides/put-your-idea-on-trial-in-front-of-a-jury-of-12-claudes-how-to-install-the-free-skill).
+Maintained by **Cristiano Gariboldo** (Pixel3Design) — [social@pixel3design.it](mailto:social@pixel3design.it).
 
 Ask the model "is this a good idea?" and it usually says yes. `/skill:court` takes the same idea and
 runs a trial instead:
@@ -23,26 +23,54 @@ and what to change before you try again.
 
 **It never touches your files.** Everything is written inside `.court/` in the folder you run it in.
 
+## Where this comes from
+
+This is a derivative work, and the idea is not original to this repo. The trial design — a prosecutor,
+a defense, rebuttals, 12 jurors who never see each other's vote, a judge who reads the verdict, and a
+`court.py` clerk that only does bookkeeping — comes from the original **court** skill by Alex Chen,
+written for Claude Code: **https://github.com/alexyc9381/court-skill**.
+
+This repo ports that work to [Pi](https://pi.dev) and keeps its spirit: same trial, same charge, same
+verdict format, same rule that the orchestrating agent never argues, never votes and never edits the
+verdict. The original is MIT-licensed, and so is this port.
+
+## Differences from the original
+
+- **Runs on Pi, not Claude Code.** Invoked as `/skill:court` instead of `/court`; the script path is
+  resolved from the skill directory instead of `${CLAUDE_SKILL_DIR}`; sub-agents run through Pi's
+  `Agent` tool instead of Claude Code's `Task` tool.
+- **Parallel by design.** The whole phase (2 openings, 2 rebuttals, 12 jurors) is launched in a single
+  message as foreground agents, so a full trial is 4 blocking rounds and roughly two minutes. The
+  original launched in waves of six, which serialized the jury.
+- **Needs the Pi sub-agents extension.** `pi install npm:@tintinweb/pi-subagents`, which provides the
+  `Agent` tool. Claude Code bundles its own.
+- **Pi packaging.** `package.json` with the `pi-package` keyword and a `pi.skills` manifest, instead of
+  `.claude-plugin/marketplace.json` and `plugin.json`.
+- **Arguments.** Pi appends the text after `/skill:court` to the instructions, so the Claude Code
+  `$ARGUMENTS` placeholder and the `argument-hint` frontmatter field are gone; the flags below still work.
+- **Smaller Pi-side cleanups.** Install, uninstall and credit lines, the `uv run` test command, and
+  tests that check the phase is listed as one parallel launch.
+
 ## Install
 
 Paste this into Pi:
 
 ```
-https://github.com/alexyc9381/court-skill
+https://github.com/pixel3design-hub/Pi.dev-court-skill
 Install this skill for Pi, then confirm /skill:court works.
 ```
 
 Or as a Pi package:
 
 ```bash
-pi install git:github.com/alexyc9381/court-skill
+pi install git:github.com/pixel3design-hub/Pi.dev-court-skill
 ```
 
 Or copy the skill folder into any Pi skill directory:
 
 ```bash
-git clone https://github.com/alexyc9381/court-skill
-cp -r court-skill/skills/court ~/.agents/skills/
+git clone https://github.com/pixel3design-hub/Pi.dev-court-skill
+cp -r Pi.dev-court-skill/skills/court ~/.agents/skills/
 ```
 
 Run `/reload` (or restart Pi) and it shows up as `/skill:court`.
@@ -85,17 +113,19 @@ uv run python -m unittest discover -s tests
 Go ahead. Credit it like this, in your caption or description:
 
 ```text
-court skill by Alex Chen (@nocodealex): github.com/alexyc9381/court-skill
+Pi court skill by Cristiano Gariboldo (Pixel3Design): github.com/pixel3design-hub/Pi.dev-court-skill
+Based on the original court skill: github.com/alexyc9381/court-skill
 ```
 
-Tag [@nocodealex](https://instagram.com/nocodealex) so I can see it. Every verdict the skill writes already ends with the same credit, so leave it in the shot.
+Every verdict the skill writes already ends with that credit, so leave it in the shot. Questions or a
+bug: social@pixel3design.it.
 
 Writing about it or citing it in a paper? Use **Cite this repository** in the sidebar on GitHub.
 
 ## Uninstall
 
 ```bash
-pi remove git:github.com/alexyc9381/court-skill
+pi remove git:github.com/pixel3design-hub/Pi.dev-court-skill
 ```
 
 Not made by Anthropic or Pi. The jury is made of language models, so treat the verdict as a structured

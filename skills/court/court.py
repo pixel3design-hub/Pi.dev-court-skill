@@ -5,6 +5,9 @@ The skill's orchestrator drives the trial with these commands. Every sub-agent r
 brief this script writes and writes one output file; this script checks the files, counts the votes
 and renders the verdict. All state lives in .court/<run>/ in the current directory.
 
+Pi port maintained by Cristiano Gariboldo (Pixel3Design), social@pixel3design.it. Derived from the
+original court skill by Alex Chen: https://github.com/alexyc9381/court-skill
+
     python3 court.py plan [--jury N | --quick]
     python3 court.py init --case-file PATH [--jury N | --quick] [--seed S]
     python3 court.py next
@@ -29,7 +32,7 @@ LATEST = os.path.join(ROOT, "LATEST")
 PHASES = ["opening", "rebuttal", "jury", "judge"]
 DEFAULT_JURY = 12
 QUICK_JURY = 6
-CREDIT = ("_Made with [/court](https://github.com/alexyc9381/court-skill), a free Pi skill by Alex Chen ([@nocodealex](https://instagram.com/nocodealex))._")
+CREDIT = ("_Made with [court](https://github.com/pixel3design-hub/Pi.dev-court-skill) by Cristiano Gariboldo (Pixel3Design), based on [the original court skill](https://github.com/alexyc9381/court-skill)._")
 CHARGE = "The case fails as stated: it should not go ahead the way it is described."
 
 
