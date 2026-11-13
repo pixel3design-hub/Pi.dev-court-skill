@@ -7,7 +7,9 @@ description: >-
   the conditions that would flip it. Use when the user wants honest pushback
   instead of agreement, says the model just agrees with everything, asks "is
   this a good idea", wants an idea, plan, pitch or claim stress-tested, or says
-  "court" or "put it on trial".
+  "court" or "put it on trial". It weighs the evidence first: a case with none is
+  dismissed, missing facts are asked for, and a pile of unrelated evidence is sent
+  back to be reorganised instead of tried.
 license: MIT
 metadata:
   author: "Cristiano Gariboldo (Pixel3Design)"
@@ -57,8 +59,8 @@ Read the flags out of the request. Everything that is not a flag is the case.
 | `--seed S` | Fixes which jurors sit on a smaller jury. Default: random, and recorded. |
 
 Run `COURT plan` with the same flags and tell the user in one line how big the trial is, for example
-"12 jurors, 17 sub-agent calls", then start. If this skill fired on its own (the user never asked for
-a trial), ask once first and offer `--quick`.
+"12 jurors, 17 sub-agent calls", then go on to the evidence check. If this skill fired on its own
+(the user never asked for a trial), ask once first and offer `--quick`.
 
 Sub-agents write into `.court/` in the current directory. Pi does not ask for approval per tool call;
 check the run folder afterwards rather than changing the user's settings.
@@ -74,14 +76,71 @@ know only what is in the case file, so write `.court/case.md` to stand on its ow
   already tried, constraints.
 - Do not add facts the user never gave, and do not write your own opinion of the idea into it. A case
   file that leans one way decides the trial before it starts.
+- Where a fact the verdict needs is missing, write `NOT PROVIDED` instead of guessing. The evidence
+  check in the next step reads those markers.
 
-## Step 3: open the trial
+## Step 3: weigh the evidence
+
+Before the trial spends 17 sub-agents, check the filing. Read `.court/case.md` once and count what is
+actually evidence: a number, a named source, a result the user already got, a cost, a date, a
+constraint they have hit. A wish, a feeling or a plan to find out later is not evidence. The charge
+the evidence has to bear on is always the same: does the case fail as stated, should it not go ahead
+the way it is described?
+
+| what you find | what you do |
+| --- | --- |
+| no evidence, or one claim with nothing behind it | **dismiss** |
+| a fact the verdict obviously depends on is absent | **ask**, at most 3 questions, once |
+| more than one case, or evidence that does not bear on the charge | **dismiss and reorganise** |
+| a few concrete facts that bear on the charge | run the trial |
+
+**Dismiss, thin.** Do not run `init` and do not launch a single sub-agent. Write
+`.court/DISMISSED.md`:
+
+```markdown
+# Dismissed: not enough evidence to try
+
+**The case:** <one line>
+**What is missing:** <the facts a jury would need to reach a verdict>
+**What would make it triable:** <2 or 3 concrete things to bring back>
+```
+
+Show it, add at most two lines of your own, and stop. Dismissing is a verdict here, not a failure.
+
+**Ask, incomplete.** A missing fact decides the outcome, so ask before the trial, not after. One
+message, at most 3 questions, each answerable in a line: "What did each candle cost you, all in?" not
+"tell me about your costs". Wait for the answer, write it into `.court/case.md`, and weigh once more.
+If a fact is still missing, write `NOT PROVIDED` next to it in the case file and go on: the jury is
+allowed to weigh the gap, and it is allowed to punish it.
+
+**Dismiss and reorganise, scattered.** The file holds more than one case, or the evidence does not
+touch the charge. Do not run `init`. Write `.court/DISMISSED.md` with the mapping:
+
+```markdown
+# Dismissed: the case needs reorganising
+
+| what the user gave | what it is about | bears on the charge? |
+|---|---|---|
+| ... | ... | ... |
+
+**The one case worth trying:** <one line>
+**Cut or set aside:** <2 or 3 items>
+**Bring back:** <the evidence that one case needs>
+```
+
+Then ask the user to reorganise into a single case with its own evidence, and offer to start again.
+
+You are still the clerk: this step decides whether there is a case to try, never whether it wins.
+Never invent a fact to save a thin case. If the user insists on a trial anyway, write the gaps into
+the case file as `NOT PROVIDED` and run it: the jury will weigh the absence.
+
+## Step 4: open the trial
 
 ```bash
 COURT init --case-file .court/case.md [--jury N | --quick] [--seed S]
 ```
 
-## Step 4: the trial
+## Step 5: the trial
 
 Always drive it with `COURT next`. It reads the files on disk and tells you the next phase and the
 exact command. The phases run in this order: `opening`, `rebuttal`, `jury`, `judge`.
@@ -104,7 +163,7 @@ Every phase works the same way:
    twice, write the single line `NO VOTE` into its file (`COURT check jury` lists it) and move on.
    Never write a vote, a statement or a judgment yourself.
 
-## Step 5: the verdict
+## Step 6: the verdict
 
 When `COURT next` says the trial is over:
 

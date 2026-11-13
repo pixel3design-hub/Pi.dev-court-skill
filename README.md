@@ -8,6 +8,9 @@ Maintained by **Cristiano Gariboldo** (Pixel3Design) — [social@pixel3design.it
 Ask the model "is this a good idea?" and it usually says yes. `/skill:court` takes the same idea and
 runs a trial instead:
 
+0. The **clerk** weighs the evidence first. Nothing to judge? The case is dismissed with no trial. A
+   decision-critical fact missing? It asks for it. A pile of unrelated evidence? It maps what relates
+   to what and sends the case back to be reorganised.
 1. A **prosecutor** sub-agent builds the strongest honest case that your idea fails as described.
 2. A **defense** sub-agent builds the strongest honest case that it works.
 3. Each side answers the other's points.
@@ -19,7 +22,8 @@ runs a trial instead:
    conditions for acquittal: the specific changes that would flip the most votes.
 
 What comes back is `VERDICT.md`: the vote (for example GUILTY, 9 to 3), every juror's one-line reason,
-and what to change before you try again.
+and what to change before you try again. If the case is dismissed before trial, you get
+`.court/DISMISSED.md` instead: what is missing, or what relates to what and what to cut.
 
 **It never touches your files.** Everything is written inside `.court/` in the folder you run it in.
 
@@ -39,6 +43,11 @@ verdict. The original is MIT-licensed, and so is this port.
 - **Runs on Pi, not the original harness.** Invoked as `/skill:court` instead of `/court`; the script
   path is resolved from the skill directory instead of a harness-supplied skill-dir variable;
   sub-agents run through Pi's `Agent` tool instead of the older harness's `Task` tool.
+- **Evidence gate.** Before a single sub-agent runs, the clerk checks the filing: no evidence means the
+  case is dismissed, a fact the verdict depends on means up to three questions first, and evidence that
+  does not bear on the charge means the case is dismissed with a map of what relates to what and a
+  request to reorganise. `court.py` only records the outcome; the weighing is the orchestrator's, so no
+  trial is ever spent on an empty case. The original opened the trial straight away.
 - **Parallel by design.** The whole phase (2 openings, 2 rebuttals, 12 jurors) is launched in a single
   message as foreground agents, so a full trial is 4 blocking rounds and roughly two minutes. The
   original launched in waves of six, which serialized the jury.
@@ -101,8 +110,10 @@ handmade candles on Etsy full time" came back GUILTY, 3 to 0, with the condition
 ## How it works
 
 `skills/court/court.py` does the bookkeeping: it opens the trial, writes one brief per sub-agent, checks
-that every output exists, counts the votes and renders the verdict. The orchestrating agent only
-orchestrates: it never argues a side, never votes and never edits the verdict. The jurors are in `skills/court/jurors.json`.
+that every output exists, counts the votes and renders the verdict. Before any of that, the orchestrator
+weighs the evidence in the case file and either dismisses it, asks for the missing facts, or sends it
+back to be reorganised. The orchestrating agent only orchestrates: it never argues a side, never votes
+and never edits the verdict. The jurors are in `skills/court/jurors.json`.
 
 ```bash
 uv run python -m unittest discover -s tests
