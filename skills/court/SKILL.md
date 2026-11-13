@@ -48,6 +48,8 @@ Below, `COURT` means exactly that command. Take "this skill's directory" from th
 skill in your system prompt. The state lives in `.court/<run>/state.json` in the current directory,
 and every command after `init` finds it through `.court/LATEST`.
 
+If `python3` is blocked or missing here, run the same commands as `uv run python "<dir>/court.py" ...`.
+
 ## Step 1: size it
 
 Read the flags out of the request. Everything that is not a flag is the case.
