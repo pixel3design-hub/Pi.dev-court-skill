@@ -151,15 +151,13 @@ uv run python -m unittest discover -s tests
 
 ## Making a video or post about this?
 
-Go ahead. Credit it like this, in your caption or description:
-
 ```text
 Pi court skill by Cristiano Gariboldo (Pixel3Design): github.com/pixel3design-hub/Pi.dev-court-skill
 Based on the original court skill: github.com/alexyc9381/court-skill
 ```
 
-Every verdict the skill writes already ends with that credit, so leave it in the shot. Questions or a
-bug: social@pixel3design.it.
+Bugs: open an Issue.
+Questions: social@pixel3design.it.
 
 Writing about it or citing it in a paper? Use **Cite this repository** in the sidebar on GitHub.
 
@@ -169,5 +167,5 @@ Writing about it or citing it in a paper? Use **Cite this repository** in the si
 pi remove git:github.com/pixel3design-hub/Pi.dev-court-skill
 ```
 
-Not made by Anthropic or Pi. The jury is made of language models, so treat the verdict as a structured
+Not made by any LLM provider or Pi. The jury is made of language models, so treat the verdict as a structured
 second opinion, not legal, financial or professional advice.
