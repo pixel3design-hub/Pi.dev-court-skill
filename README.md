@@ -104,11 +104,24 @@ A full trial is 17 sub-agent calls (2 openings, 2 rebuttals, 12 jurors, 1 judge)
 They run in parallel, one round per phase, so a full trial is 4 blocking rounds: the wall clock is
 about the slowest agent in each round, not the sum of 17.
 Every sub-agent counts toward your model usage, so start with `--quick` if you are near your limit.
-If you insist on a trial for a case with no numbers in it, the skill has to pass `--force`, and the
-verdict then rests on an empty record.
 
 See `examples/candles/VERDICT.md` for a real (3-juror) trial: "Quit my job as a nurse to sell
 handmade candles on Etsy full time" came back GUILTY, 3 to 0, with the conditions that would flip it.
+
+### What can end it before the trial
+
+The case is read as a filing before any sub-agent runs, and `court.py` enforces the outcome:
+
+- **No evidence** (no number, cost, date or result) → dismissed: `.court/DISMISSED.md` says what is
+  missing and what would make it triable. No sub-agents, no verdict.
+- **A fact the verdict depends on is missing** → at most three questions, asked once. An answer you
+  cannot give is written as `NOT PROVIDED` and the jury weighs the gap.
+- **Unrelated evidence, or several cases in one** → dismissed with a table of what relates to what,
+  the one case worth trying, and what to cut.
+- **After a dismissal**, nothing can be tried until `court.py dismiss --clear`: bring the evidence,
+  update `case.md`, clear, run again.
+- **Insisting** on a case with no numbers needs `court.py init --force`; the verdict then rests on an
+  empty record.
 
 ## How it works
 
@@ -119,6 +132,18 @@ evidence: `dismiss` leaves a marker that `init` refuses, and `init` itself rejec
 number, cost, date or result in it unless it is passed `--force`. The orchestrating agent only
 orchestrates: it never argues a side, never votes and never edits the verdict. The jurors are in
 `skills/court/jurors.json`.
+
+```bash
+python3 court.py plan    [--jury N | --quick]              # size and cost, no state
+python3 court.py dismiss --reason thin|scattered --note "..."   # write the dismissal record
+python3 court.py dismiss --clear                            # allow a trial again
+python3 court.py init    --case-file .court/case.md [--jury N | --quick] [--seed S] [--force]
+python3 court.py next                                       # what phase is next
+python3 court.py prompts <opening|rebuttal|jury|judge>      # write briefs, list the jobs
+python3 court.py check   <phase>                            # which outputs are still missing
+python3 court.py tally
+python3 court.py render                                     # VERDICT.md
+```
 
 ```bash
 uv run python -m unittest discover -s tests
