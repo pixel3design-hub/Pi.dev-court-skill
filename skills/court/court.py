@@ -9,7 +9,8 @@ Pi port maintained by Cristiano Gariboldo (Pixel3Design), social@pixel3design.it
 original court skill by Alex Chen: https://github.com/alexyc9381/court-skill
 
     python3 court.py plan [--jury N | --quick]
-    python3 court.py init --case-file PATH [--jury N | --quick] [--seed S]
+    python3 court.py init --case-file PATH [--jury N | --quick] [--seed S] [--force]
+    python3 court.py dismiss --reason thin|scattered --note TEXT   (or: --clear)
     python3 court.py next
     python3 court.py prompts <phase>
     python3 court.py check <phase>
@@ -34,6 +35,17 @@ DEFAULT_JURY = 12
 QUICK_JURY = 6
 CREDIT = ("_Made with [court](https://github.com/pixel3design-hub/Pi.dev-court-skill) by Cristiano Gariboldo (Pixel3Design), based on [the original court skill](https://github.com/alexyc9381/court-skill)._")
 CHARGE = "The case fails as stated: it should not go ahead the way it is described."
+
+DISMISSED = os.path.join(ROOT, "DISMISSED")
+DISMISSED_DOC = os.path.join(ROOT, "DISMISSED.md")
+DISMISS_TITLES = {"thin": "not enough evidence to try", "scattered": "the case needs reorganising"}
+NUMBER_RE = re.compile(r"\d")
+
+
+def has_evidence(case):
+    """The floor, not the judgement: a case with no number, cost, date or result anywhere has nothing
+    for a jury to weigh, so it cannot open a trial unless the caller forces it."""
+    return bool(NUMBER_RE.search(case))
 
 
 # ---------- state ----------
@@ -248,13 +260,43 @@ def cmd_plan(args):
           % (n, n, calls))
 
 
+def cmd_dismiss(args):
+    if args.clear:
+        for p in (DISMISSED, DISMISSED_DOC):
+            if os.path.exists(p):
+                os.remove(p)
+        print("court: dismissal cleared; a trial can be opened again")
+        return
+    if not args.reason:
+        sys.exit("court: dismiss needs --reason thin|scattered, or --clear")
+    os.makedirs(ROOT, exist_ok=True)
+    with open(DISMISSED, "w") as f:
+        f.write("%s %s\n" % (args.reason, time.strftime("%Y-%m-%dT%H:%M:%S")))
+    text = ("# Dismissed: %s\n\n%s\n\n_No trial was opened, so no sub-agents were spent. "
+            "Bring the missing evidence, then run this skill again._\n"
+            % (DISMISS_TITLES[args.reason], (args.note or "").strip() or "(no detail recorded)"))
+    with open(DISMISSED_DOC, "w") as f:
+        f.write(text)
+    sys.stdout.write(text)
+
+
 def cmd_init(args):
     n = jury_size(args)
+    if os.path.exists(DISMISSED):
+        with open(DISMISSED) as f:
+            why = f.read().strip()
+        sys.exit("court: this case was dismissed (%s). Bring the evidence, then: "
+                 "court.py dismiss --clear" % why)
     if not os.path.exists(args.case_file):
         sys.exit("court: case file not found: %s" % args.case_file)
     case = open(args.case_file).read().strip()
     if not case:
         sys.exit("court: the case file is empty")
+    if not args.force and not has_evidence(case):
+        sys.exit("court: the case file holds no evidence (no number, cost, date or result) to weigh. "
+                 "Dismiss it or ask for the facts; to try it anyway: court.py init ... --force")
+    if args.force and not has_evidence(case):
+        print("court: forced: the case has no numbers; the jury will weigh that absence")
     seed = args.seed if args.seed is not None else random.randrange(1, 10 ** 6)
     jurors = load_jurors()
     rng = random.Random(seed)
@@ -331,6 +373,11 @@ def main(argv=None):
     pi.add_argument("--jury", type=int)
     pi.add_argument("--quick", action="store_true")
     pi.add_argument("--seed", type=int)
+    pi.add_argument("--force", action="store_true")
+    pd = sub.add_parser("dismiss")
+    pd.add_argument("--reason", choices=sorted(DISMISS_TITLES))
+    pd.add_argument("--note", default="")
+    pd.add_argument("--clear", action="store_true")
     for name in ("prompts", "check"):
         sp = sub.add_parser(name)
         sp.add_argument("phase", choices=PHASES)
@@ -340,8 +387,8 @@ def main(argv=None):
     if not args.cmd:
         p.print_help()
         return 1
-    {"plan": cmd_plan, "init": cmd_init, "prompts": cmd_prompts, "check": cmd_check,
-     "next": cmd_next, "tally": cmd_tally, "render": cmd_render}[args.cmd](args)
+    {"plan": cmd_plan, "init": cmd_init, "dismiss": cmd_dismiss, "prompts": cmd_prompts,
+     "check": cmd_check, "next": cmd_next, "tally": cmd_tally, "render": cmd_render}[args.cmd](args)
     return 0
 
 

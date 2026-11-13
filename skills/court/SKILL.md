@@ -94,18 +94,18 @@ the way it is described?
 | more than one case, or evidence that does not bear on the charge | **dismiss and reorganise** |
 | a few concrete facts that bear on the charge | run the trial |
 
-**Dismiss, thin.** Do not run `init` and do not launch a single sub-agent. Write
-`.court/DISMISSED.md`:
+**Dismiss, thin.** Do not run `init` and do not launch a single sub-agent. Dismiss it with the tool,
+which writes `.court/DISMISSED.md` and blocks any later `init` until it is cleared:
 
-```markdown
-# Dismissed: not enough evidence to try
-
-**The case:** <one line>
-**What is missing:** <the facts a jury would need to reach a verdict>
-**What would make it triable:** <2 or 3 concrete things to bring back>
+```bash
+COURT dismiss --reason thin --note "The case: <one line>
+What is missing: <the facts a jury would need to reach a verdict>
+What would make it triable: <2 or 3 concrete things to bring back>"
 ```
 
-Show it, add at most two lines of your own, and stop. Dismissing is a verdict here, not a failure.
+Show what it printed, add at most two lines of your own, and stop. Dismissing is a verdict here, not a
+failure. When the user comes back with the missing evidence, update `.court/case.md` and run
+`COURT dismiss --clear` before opening the trial.
 
 **Ask, incomplete.** A missing fact decides the outcome, so ask before the trial, not after. One
 message, at most 3 questions, each answerable in a line: "What did each candle cost you, all in?" not
@@ -114,31 +114,33 @@ If a fact is still missing, write `NOT PROVIDED` next to it in the case file and
 allowed to weigh the gap, and it is allowed to punish it.
 
 **Dismiss and reorganise, scattered.** The file holds more than one case, or the evidence does not
-touch the charge. Do not run `init`. Write `.court/DISMISSED.md` with the mapping:
+touch the charge. Do not run `init`. Dismiss it with the mapping in the note:
 
-```markdown
-# Dismissed: the case needs reorganising
-
-| what the user gave | what it is about | bears on the charge? |
+```bash
+COURT dismiss --reason scattered --note "| what the user gave | what it is about | bears on the charge? |
 |---|---|---|
 | ... | ... | ... |
 
-**The one case worth trying:** <one line>
-**Cut or set aside:** <2 or 3 items>
-**Bring back:** <the evidence that one case needs>
+The one case worth trying: <one line>
+Cut or set aside: <2 or 3 items>
+Bring back: <the evidence that one case needs>"
 ```
 
 Then ask the user to reorganise into a single case with its own evidence, and offer to start again.
 
 You are still the clerk: this step decides whether there is a case to try, never whether it wins.
-Never invent a fact to save a thin case. If the user insists on a trial anyway, write the gaps into
-the case file as `NOT PROVIDED` and run it: the jury will weigh the absence.
+Never invent a fact to save a thin case. `init` refuses a case file with no number, cost, date or
+result in it at all; if the user insists on a trial anyway, write the gaps into the case file as
+`NOT PROVIDED` and pass `--force`, and say in one line that the verdict rests on an empty record.
 
 ## Step 4: open the trial
 
 ```bash
 COURT init --case-file .court/case.md [--jury N | --quick] [--seed S]
 ```
+
+If it exits with "this case was dismissed", the record is still there: clear it with
+`COURT dismiss --clear` once the evidence is in.
 
 ## Step 5: the trial
 

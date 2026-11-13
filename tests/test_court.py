@@ -100,6 +100,39 @@ class CourtTest(unittest.TestCase):
         self.assertFalse(court.missing(state, "opening"))
         self.assertTrue(court.missing(state, "rebuttal"))
 
+    def write_case(self, text):
+        with open(".court/case.md", "w") as f:
+            f.write(text)
+
+    def test_a_case_without_evidence_cannot_open_a_trial(self):
+        self.write_case("Quit my job to sell candles\n")
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            court.main(["init", "--case-file", ".court/case.md"])
+        self.assertFalse(os.path.exists(court.LATEST))
+        # forcing it is explicit, and still opens
+        state = self.open_trial("--force")
+        self.assertEqual(len(state["jury"]), 12)
+
+    def test_dismiss_blocks_init_until_cleared(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            court.main(["dismiss", "--reason", "thin", "--note", "No costs anywhere."])
+        self.assertIn("# Dismissed: not enough evidence to try", buf.getvalue())
+        self.assertTrue(os.path.exists(court.DISMISSED))
+        self.assertIn("No costs anywhere.", open(court.DISMISSED_DOC).read())
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            court.main(["init", "--case-file", ".court/case.md"])
+        self.assertFalse(os.path.exists(court.LATEST))
+        with contextlib.redirect_stdout(io.StringIO()):
+            court.main(["dismiss", "--clear"])
+        state = self.open_trial()
+        self.assertEqual(len(state["jury"]), 12)
+
+    def test_dismiss_needs_a_reason_or_clear(self):
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            court.main(["dismiss"])
+        self.assertFalse(os.path.exists(court.DISMISSED))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -43,11 +43,12 @@ verdict. The original is MIT-licensed, and so is this port.
 - **Runs on Pi, not the original harness.** Invoked as `/skill:court` instead of `/court`; the script
   path is resolved from the skill directory instead of a harness-supplied skill-dir variable;
   sub-agents run through Pi's `Agent` tool instead of the older harness's `Task` tool.
-- **Evidence gate.** Before a single sub-agent runs, the clerk checks the filing: no evidence means the
-  case is dismissed, a fact the verdict depends on means up to three questions first, and evidence that
-  does not bear on the charge means the case is dismissed with a map of what relates to what and a
-  request to reorganise. `court.py` only records the outcome; the weighing is the orchestrator's, so no
-  trial is ever spent on an empty case. The original opened the trial straight away.
+- **Evidence gate, enforced in code.** Before a single sub-agent runs, the clerk checks the filing: no
+  evidence dismisses the case, a fact the verdict depends on means up to three questions first, and
+  evidence that does not bear on the charge dismisses it with a map of what relates to what and a
+  request to reorganise. `court.py dismiss` writes `.court/DISMISSED.md` and leaves a marker that
+  `court.py init` refuses to cross, and `init` also rejects a case file with no number, cost, date or
+  result in it unless the caller passes `--force`. The original opened the trial straight away.
 - **Parallel by design.** The whole phase (2 openings, 2 rebuttals, 12 jurors) is launched in a single
   message as foreground agents, so a full trial is 4 blocking rounds and roughly two minutes. The
   original launched in waves of six, which serialized the jury.
@@ -103,17 +104,21 @@ A full trial is 17 sub-agent calls (2 openings, 2 rebuttals, 12 jurors, 1 judge)
 They run in parallel, one round per phase, so a full trial is 4 blocking rounds: the wall clock is
 about the slowest agent in each round, not the sum of 17.
 Every sub-agent counts toward your model usage, so start with `--quick` if you are near your limit.
+If you insist on a trial for a case with no numbers in it, the skill has to pass `--force`, and the
+verdict then rests on an empty record.
 
 See `examples/candles/VERDICT.md` for a real (3-juror) trial: "Quit my job as a nurse to sell
 handmade candles on Etsy full time" came back GUILTY, 3 to 0, with the conditions that would flip it.
 
 ## How it works
 
-`skills/court/court.py` does the bookkeeping: it opens the trial, writes one brief per sub-agent, checks
-that every output exists, counts the votes and renders the verdict. Before any of that, the orchestrator
-weighs the evidence in the case file and either dismisses it, asks for the missing facts, or sends it
-back to be reorganised. The orchestrating agent only orchestrates: it never argues a side, never votes
-and never edits the verdict. The jurors are in `skills/court/jurors.json`.
+`skills/court/court.py` does the bookkeeping: it weighs the filing (`plan`, `dismiss`), opens the trial,
+writes one brief per sub-agent, checks that every output exists, counts the votes and renders the
+verdict. The orchestrator decides which of those to run, but it cannot open a trial on a case with no
+evidence: `dismiss` leaves a marker that `init` refuses, and `init` itself rejects a case file with no
+number, cost, date or result in it unless it is passed `--force`. The orchestrating agent only
+orchestrates: it never argues a side, never votes and never edits the verdict. The jurors are in
+`skills/court/jurors.json`.
 
 ```bash
 uv run python -m unittest discover -s tests
