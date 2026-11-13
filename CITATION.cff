@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you show this in a video, post, article or paper, please credit it as below and mention the original court skill it derives from."
 type: software
 title: "Pi court skill: put your idea on trial in front of a jury of 12 sub-agents"
-abstract: "A Pi port of the original court skill: a prosecutor sub-agent, a defense sub-agent, a jury of 12 sub-agents who vote on their own, and a judge who reads the verdict and what would flip it. Derived from the Claude Code court skill by Alex Chen."
+abstract: "A Pi port of the original court skill: a prosecutor sub-agent, a defense sub-agent, a jury of 12 sub-agents who vote on their own, and a judge who reads the verdict and what would flip it. Derived from the original court skill by Alex Chen."
 authors:
   - given-names: Cristiano
     family-names: Gariboldo
@@ -25,7 +25,7 @@ keywords:
   - feedback
 references:
   - type: software
-    title: "court-skill: put your idea on trial in front of a jury of 12 Claudes (original Claude Code skill)"
+    title: "court-skill: put your idea on trial in front of a jury of 12 sub-agents (original agent skill)"
     repository-code: "https://github.com/alexyc9381/court-skill"
     authors:
       - given-names: Alex

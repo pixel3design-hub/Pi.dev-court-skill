@@ -28,7 +28,7 @@ and what to change before you try again.
 This is a derivative work, and the idea is not original to this repo. The trial design — a prosecutor,
 a defense, rebuttals, 12 jurors who never see each other's vote, a judge who reads the verdict, and a
 `court.py` clerk that only does bookkeeping — comes from the original **court** skill by Alex Chen,
-written for Claude Code: **https://github.com/alexyc9381/court-skill**.
+written for another agent harness: **https://github.com/alexyc9381/court-skill**.
 
 This repo ports that work to [Pi](https://pi.dev) and keeps its spirit: same trial, same charge, same
 verdict format, same rule that the orchestrating agent never argues, never votes and never edits the
@@ -36,17 +36,17 @@ verdict. The original is MIT-licensed, and so is this port.
 
 ## Differences from the original
 
-- **Runs on Pi, not Claude Code.** Invoked as `/skill:court` instead of `/court`; the script path is
-  resolved from the skill directory instead of `${CLAUDE_SKILL_DIR}`; sub-agents run through Pi's
-  `Agent` tool instead of Claude Code's `Task` tool.
+- **Runs on Pi, not the original harness.** Invoked as `/skill:court` instead of `/court`; the script
+  path is resolved from the skill directory instead of a harness-supplied skill-dir variable;
+  sub-agents run through Pi's `Agent` tool instead of the older harness's `Task` tool.
 - **Parallel by design.** The whole phase (2 openings, 2 rebuttals, 12 jurors) is launched in a single
   message as foreground agents, so a full trial is 4 blocking rounds and roughly two minutes. The
   original launched in waves of six, which serialized the jury.
 - **Needs the Pi sub-agents extension.** `pi install npm:@tintinweb/pi-subagents`, which provides the
-  `Agent` tool. Claude Code bundles its own.
+  `Agent` tool. The older harness bundles its own.
 - **Pi packaging.** `package.json` with the `pi-package` keyword and a `pi.skills` manifest, instead of
-  `.claude-plugin/marketplace.json` and `plugin.json`.
-- **Arguments.** Pi appends the text after `/skill:court` to the instructions, so the Claude Code
+  a plugin marketplace manifest and `plugin.json`.
+- **Arguments.** Pi appends the text after `/skill:court` to the instructions, so the older harness's
   `$ARGUMENTS` placeholder and the `argument-hint` frontmatter field are gone; the flags below still work.
 - **Smaller Pi-side cleanups.** Install, uninstall and credit lines, the `uv run` test command, and
   tests that check the phase is listed as one parallel launch.
