@@ -1,3 +1,9 @@
+"""Tests for the court skill's bookkeeping.
+
+Every test runs the real court.py from a temporary directory, so the gates it asserts are the ones a
+model driving the skill actually hits: a dismissed case, missing or stale arithmetic, an evidence-free
+case, and the briefs that decide who is allowed to compute.
+"""
 import contextlib
 import io
 import json
@@ -15,6 +21,9 @@ import court  # noqa: E402
 
 
 class CourtTest(unittest.TestCase):
+    """Each test gets an empty .court/ with one evidence-bearing case, so the gates are tested in the
+    state the clerk really starts from."""
+
     def setUp(self):
         self.old = os.getcwd()
         self.tmp = tempfile.mkdtemp()
@@ -28,6 +37,7 @@ class CourtTest(unittest.TestCase):
         shutil.rmtree(self.tmp)
 
     def write_maths(self):
+        # Pretrial artefact: written after case.md, so it passes init's freshness check.
         os.makedirs(".court/figures", exist_ok=True)
         with open(".court/figures/maths.md", "w") as f:
             f.write("# The arithmetic\n\n| figure | expression | value | why it matters |\n")

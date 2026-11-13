@@ -153,6 +153,35 @@ number, cost, date or result in it unless it is passed `--force`. The orchestrat
 orchestrates: it never argues a side, never votes and never edits the verdict. The jurors are in
 `skills/court/jurors.json`.
 
+### Order of operations
+
+```text
+.court/case.md              facts as the user gave them, no derived arithmetic
+      |
+      |  court.py figures          one math-expert sub-agent
+      v
+.court/figures/maths.md     figures + "Not in the record" (the inputs the case never gives)
+      |
+      |  clerk asks about the missing inputs that decide the verdict, once
+      |  court.py init             refuses stale arithmetic, copies figures/ into the run
+      v
+opening (2) -> rebuttal (2) -> jury (N) -> judge (1)     briefs quote maths.md, nobody computes
+      |
+      v
+.court/<run>/VERDICT.md     vote, reasons, conditions, path to the arithmetic
+```
+
+### Repository layout
+
+```text
+skills/court/SKILL.md      instructions the skill follows (the clerk's procedure)
+skills/court/court.py      bookkeeping: gates, briefs, tally, verdict
+skills/court/jurors.json   the 12 juror personas and their lenses
+tests/test_court.py        stdlib unittest, no fixtures
+examples/candles/          one complete recorded trial, verdict included
+package.json               Pi package manifest (pi-package + pi.skills)
+```
+
 ```bash
 python3 court.py plan    [--jury N | --quick]              # size and cost, no state
 python3 court.py figures                                     # write the math expert's brief
@@ -166,8 +195,14 @@ python3 court.py tally
 python3 court.py render                                     # VERDICT.md
 ```
 
+## Tests
+
+The suite is stdlib `unittest` against the real script, run in a temporary directory: the gates
+(dismissal marker, missing and stale arithmetic, evidence floor), the briefs (figures owns the
+arithmetic, every other phase is barred from it), vote parsing, hung juries, and the rendered verdict.
+
 ```bash
-uv run python -m unittest discover -s tests
+uv run python -m unittest discover -s tests     # 15 tests
 ```
 
 ## Making a video or post about this?

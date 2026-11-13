@@ -31,16 +31,19 @@ import sys
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# Everything the court reads or writes lives under .court/ in the working directory. A trial is one
+# timestamped run folder; LATEST is the pointer every command after init follows.
 ROOT = ".court"
 LATEST = os.path.join(ROOT, "LATEST")
+# figures is deliberately absent: the math expert runs before init, see cmd_figures.
 PHASES = ["opening", "rebuttal", "jury", "judge"]
 PRETRIAL_MATHS = os.path.join(ROOT, "figures", "maths.md")
-PRETRIAL_MODEL = os.path.join(ROOT, "figures", "model.py")
 DEFAULT_JURY = 12
 QUICK_JURY = 6
 CREDIT = ("_Made with [court](https://github.com/pixel3design-hub/Pi.dev-court-skill) by Cristiano Gariboldo (Pixel3Design), based on [the original court skill](https://github.com/alexyc9381/court-skill)._")
 CHARGE = "The case fails as stated: it should not go ahead the way it is described."
 
+# A dismissal leaves a marker as well as a document, so a later init cannot quietly reopen the case.
 DISMISSED = os.path.join(ROOT, "DISMISSED")
 DISMISSED_DOC = os.path.join(ROOT, "DISMISSED.md")
 DISMISS_TITLES = {"thin": "not enough evidence to try", "scattered": "the case needs reorganising"}
@@ -79,6 +82,7 @@ def save_state(state):
 
 
 def jury_size(args):
+    """--quick wins over --jury; otherwise the default jury, bounded by the size of jurors.json."""
     if getattr(args, "quick", False):
         return QUICK_JURY
     n = getattr(args, "jury", None) or DEFAULT_JURY
@@ -90,7 +94,12 @@ def jury_size(args):
 # ---------- jobs ----------
 
 def jobs(state, phase):
-    """Each job: id, brief path, output path."""
+    """Every job in a phase: id, brief path, output path.
+
+    Output names derive from the id, so no two agents ever write the same file. `figures` is handled
+    here too, called with the pseudo-state {"dir": ROOT}, because the math expert runs before init
+    and therefore has no run folder yet.
+    """
     d = state["dir"]
     if phase == "figures":
         ids = ["maths"]
@@ -128,6 +137,12 @@ def _abs(state, *parts):
 
 
 def brief_text(state, phase, job):
+    """The entire brief a sub-agent gets: it cannot see the conversation, so every path is absolute and
+    the answer goes to exactly one file.
+
+    Only the math expert computes. Every other phase gets the derived-numbers clause pointing at the
+    arithmetic document, which is what keeps ten agents from inventing ten versions of the same sum.
+    """
     case = _abs(state, "case.md")
     head = ("You are one part of a trial run by the court skill. You cannot see the user's conversation: "
             "everything you know is in the files named below. Use only what is in the record. Never invent "
@@ -228,6 +243,11 @@ FIELD_RE = r"^\s*\**%s\**\s*:\s*(.+)$"
 
 
 def parse_vote(text):
+    """One juror's file -> a vote and its three fields.
+
+    Tolerates markdown bold and checks NOT GUILTY before GUILTY; a file with no VOTE line comes back
+    as None so the caller can record NO VOTE instead of guessing.
+    """
     m = VOTE_RE.search(text or "")
     if not m:
         return None
@@ -249,6 +269,7 @@ def tally(state):
                      "flip": v["flip"] if v else ""})
     guilty = sum(1 for r in rows if r["vote"] == "GUILTY")
     not_guilty = sum(1 for r in rows if r["vote"] == "NOT GUILTY")
+    # A tie is a hung jury: neither side wins by default.
     if guilty > not_guilty:
         verdict = "GUILTY"
     elif not_guilty > guilty:
@@ -281,6 +302,7 @@ def render(state):
     for r in t["jurors"]:
         lines.append("| %s | %s | %s |" % (r["juror"], r["vote"], r["reason"].replace("|", "/")))
     lines += ["", judgment, ""]
+    # The arithmetic line sits above the credit so a reader can re-run every number in the verdict.
     if os.path.exists(_abs(state, "figures", "maths.md")):
         lines += ["_The arithmetic: %s, recomputable with `python3 %s`._"
                   % (_abs(state, "figures", "maths.md"), _abs(state, "figures", "model.py")), ""]
@@ -317,6 +339,7 @@ def cmd_figures(args):
 
 
 def cmd_dismiss(args):
+    """Record a refusal to try, or clear it. Needs no trial state: a dismissed case never had one."""
     if args.clear:
         for p in (DISMISSED, DISMISSED_DOC):
             if os.path.exists(p):
@@ -337,6 +360,12 @@ def cmd_dismiss(args):
 
 
 def cmd_init(args):
+    """Open a trial: gates first, then the run folder.
+
+    The order matters. The dismissal marker, the case file, the arithmetic and its age, and the
+    evidence floor are all checked before anything is written, so a failed init leaves no half-trial
+    behind for `next` to pick up.
+    """
     n = jury_size(args)
     if os.path.exists(DISMISSED):
         with open(DISMISSED) as f:
@@ -364,6 +393,7 @@ def cmd_init(args):
     rd = os.path.join(ROOT, time.strftime("%Y%m%d-%H%M%S"))
     for sub in ("briefs", "opening", "rebuttal", "jury", "judge"):
         os.makedirs(os.path.join(rd, sub), exist_ok=True)
+    # Copied, not linked: the run has to stay readable after .court/figures is overwritten for a retrial.
     shutil.copytree(os.path.join(ROOT, "figures"), os.path.join(rd, "figures"))
     with open(os.path.join(rd, "case.md"), "w") as f:
         f.write(case + "\n")
@@ -376,8 +406,10 @@ def cmd_init(args):
 
 
 def cmd_prompts(args):
+    """Write a brief per job and list the ones still missing an output."""
     state = load_state()
     todo = missing(state, args.phase)
+    # Rewritten every call, so a retried job gets a brief that matches the current record.
     for j in jobs(state, args.phase):
         with open(j["brief"], "w") as f:
             f.write(brief_text(state, args.phase, j))
@@ -401,6 +433,7 @@ def cmd_check(args):
 
 
 def cmd_next(args):
+    """Walk PHASES in order and name the first one with a missing output; that is the driver loop."""
     state = load_state()
     for phase in PHASES:
         if missing(state, phase):
@@ -449,6 +482,7 @@ def main(argv=None):
     if not args.cmd:
         p.print_help()
         return 1
+    # argparse has already validated flags and phase names; each command checks its own state.
     {"plan": cmd_plan, "init": cmd_init, "figures": cmd_figures, "dismiss": cmd_dismiss,
      "prompts": cmd_prompts, "check": cmd_check, "next": cmd_next, "tally": cmd_tally,
      "render": cmd_render}[args.cmd](args)
