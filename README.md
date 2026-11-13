@@ -11,19 +11,25 @@ runs a trial instead:
 0. The **clerk** weighs the evidence first. Nothing to judge? The case is dismissed with no trial. A
    decision-critical fact missing? It asks for it. A pile of unrelated evidence? It maps what relates
    to what and sends the case back to be reorganised.
-1. A **prosecutor** sub-agent builds the strongest honest case that your idea fails as described.
-2. A **defense** sub-agent builds the strongest honest case that it works.
-3. Each side answers the other's points.
-4. **12 jurors** read the record and vote GUILTY or NOT GUILTY on their own. Each one sees the case
+1. A **math expert** reads the case, decides which calculations the charge actually needs, writes a
+   script for this case only, runs it, and publishes `figures/maths.md` with every figure, the
+   expression and the value. Nobody after that point is allowed to compute; they quote that file.
+   Nothing is hardcoded, because no one knows in advance what a given case needs calculated.
+2. A **prosecutor** sub-agent builds the strongest honest case that your idea fails as described.
+3. A **defense** sub-agent builds the strongest honest case that it works.
+4. Each side answers the other's points.
+5. **12 jurors** read the record and vote GUILTY or NOT GUILTY on their own. Each one sees the case
    through different eyes: an accountant, a first-time customer, a competitor, a retired judge, a
    teenager, an engineer, a small-business owner, a statistician, a parent, an investor, a designer
    and a lawyer. No juror sees another's vote, so nobody can just go along with the room.
-5. A **judge** sub-agent reads the verdict, the charges that stuck, what the defense got right, and the
+6. A **judge** sub-agent reads the verdict, the charges that stuck, what the defense got right, and the
    conditions for acquittal: the specific changes that would flip the most votes.
 
 What comes back is `VERDICT.md`: the vote (for example GUILTY, 9 to 3), every juror's one-line reason,
-and what to change before you try again. If the case is dismissed before trial, you get
-`.court/DISMISSED.md` instead: what is missing, or what relates to what and what to cut.
+and what to change before you try again. It ends with the path to the arithmetic (`figures/maths.md`)
+and the script that produced it, so every number in the verdict can be re-run. If the case is dismissed
+before trial, you get `.court/DISMISSED.md` instead: what is missing, or what relates to what and what
+to cut.
 
 **It never touches your files.** Everything is written inside `.court/` in the folder you run it in.
 
@@ -55,9 +61,9 @@ verdict. The original is MIT-licensed, and so is this port.
   to compute; the prosecutor and the defense can re-run the script to attack it. Nothing is hardcoded,
   because the calculation a case needs is not knowable in advance. The original left arithmetic in the
   prose.
-- **Parallel by design.** The whole phase (2 openings, 2 rebuttals, 12 jurors) is launched in a single
-  message as foreground agents, so a full trial is 4 blocking rounds and roughly two minutes. The
-  original launched in waves of six, which serialized the jury.
+- **Parallel by design.** The whole phase (the math pass, 2 openings, 2 rebuttals, 12 jurors) is
+  launched in a single message as foreground agents, so a full trial is 5 blocking rounds and roughly
+  two minutes. The original launched in waves of six, which serialized the jury.
 - **Needs the Pi sub-agents extension.** `pi install npm:@tintinweb/pi-subagents`, which provides the
   `Agent` tool. The older harness bundles its own.
 - **Pi packaging.** `package.json` with the `pi-package` keyword and a `pi.skills` manifest, instead of
