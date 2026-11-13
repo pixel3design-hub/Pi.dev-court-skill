@@ -60,6 +60,46 @@ class CourtTest(unittest.TestCase):
             self.assertIn(job["brief"], buf.getvalue())
         self.assertIn("ONE message", buf.getvalue())
 
+    def test_figures_is_the_first_phase(self):
+        state = self.open_trial("--jury", "3")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            court.main(["next"])
+        self.assertIn("next phase: figures", buf.getvalue())
+        jobs = court.jobs(state, "figures")
+        self.assertEqual([j["id"] for j in jobs], ["maths"])
+        self.assertTrue(jobs[0]["output"].endswith(os.path.join("figures", "maths.md")))
+
+    def test_figures_brief_owns_the_arithmetic_and_the_others_are_barred(self):
+        state = self.open_trial("--jury", "3")
+        with contextlib.redirect_stdout(io.StringIO()):
+            for phase in ("figures", "opening", "judge"):
+                court.main(["prompts", phase])
+        figures = open(court.jobs(state, "figures")[0]["brief"]).read()
+        opening = open(court.jobs(state, "opening")[0]["brief"]).read()
+        judge = open(court.jobs(state, "judge")[0]["brief"]).read()
+        self.assertIn(os.path.abspath(os.path.join(state["dir"], "figures", "model.py")), figures)
+        self.assertIn("Not in the record", figures)
+        self.assertIn("exits non-zero", figures)
+        self.assertNotIn("Derived numbers", figures)
+        maths = os.path.abspath(os.path.join(state["dir"], "figures", "maths.md"))
+        for text in (opening, judge):
+            self.assertIn(maths, text)
+            self.assertIn("Do not compute anything yourself", text)
+
+    def test_render_links_the_arithmetic_when_it_exists(self):
+        state = self.open_trial("--jury", "3")
+        self.write_all(state, "opening", "x")
+        self.write_all(state, "rebuttal", "x")
+        for j in court.jobs(state, "jury"):
+            with open(j["output"], "w") as f:
+                f.write("VOTE: GUILTY\nREASON: x\n")
+        self.write_all(state, "judge", "## The sentence\nNo.")
+        self.assertNotIn("The arithmetic:", court.render(state))
+        with open(os.path.join(state["dir"], "figures", "maths.md"), "w") as f:
+            f.write("# The arithmetic\n")
+        self.assertIn("The arithmetic:", court.render(state))
+
     def test_parse_vote_variants(self):
         v = court.parse_vote("VOTE: NOT GUILTY\nREASON: it pays.\nDECIDING FACT: $8,000\nWOULD FLIP IF: no savings")
         self.assertEqual(v["vote"], "NOT GUILTY")

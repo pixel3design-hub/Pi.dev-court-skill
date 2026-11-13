@@ -78,6 +78,8 @@ know only what is in the case file, so write `.court/case.md` to stand on its ow
   already tried, constraints.
 - Do not add facts the user never gave, and do not write your own opinion of the idea into it. A case
   file that leans one way decides the trial before it starts.
+- Facts only: no totals, margins, forecasts or ratios you worked out yourself. The arithmetic is someone
+  else's job (Step 5, `figures`), and a number you derived in prose is the number that ruins the trial.
 - Where a fact the verdict needs is missing, write `NOT PROVIDED` instead of guessing. The evidence
   check in the next step reads those markers.
 
@@ -147,7 +149,15 @@ If it exits with "this case was dismissed", the record is still there: clear it 
 ## Step 5: the trial
 
 Always drive it with `COURT next`. It reads the files on disk and tells you the next phase and the
-exact command. The phases run in this order: `opening`, `rebuttal`, `jury`, `judge`.
+exact command. The phases run in this order: `figures`, `opening`, `rebuttal`, `jury`, `judge`.
+
+**The `figures` phase comes first and computes the arithmetic.** It is one job (the math expert). That
+agent reads the case file, decides which calculations the charge actually needs, writes an
+`figures/model.py` script for this case, runs it, and writes `figures/maths.md`: every figure, the
+expression, the value and why it matters, plus a `Not in the record` list of inputs the case does not
+give. Every later brief points at that file and forbids the other agents to compute; they may run the
+script to check it. You are the clerk: never edit `maths.md`, never do the arithmetic yourself, and
+treat an empty `maths.md` as a missing job and re-run it.
 
 Every phase works the same way:
 
@@ -159,9 +169,9 @@ Every phase works the same way:
    - `run_in_background`: `false`
 
    Tool calls in one message run in parallel and a foreground call returns its result inline, so the
-   phase is finished when the slowest agent in it returns. That is 4 blocking rounds for the whole
-   trial (opening, rebuttal, jury, judge), not 17. Launching one job per message, or waiting for a
-   couple of agents before starting the rest, serializes the trial and makes it too slow to use.
+   phase is finished when the slowest agent in it returns. That is 5 blocking rounds for the whole
+   trial (figures, opening, rebuttal, jury, judge), not 18. Launching one job per message, or waiting
+   for a couple of agents before starting the rest, serializes the trial and makes it too slow to use.
 3. After the phase, run `COURT next`. If an output is missing it sends you back to the same phase,
    and `prompts` then lists only the missing jobs. Re-run only those, the same way. If a juror fails
    twice, write the single line `NO VOTE` into its file (`COURT check jury` lists it) and move on.
@@ -177,7 +187,8 @@ COURT render
 
 It counts the votes, writes `VERDICT.md` into the run folder and prints it. Show the user the verdict
 line, the vote table and the judge's sections exactly as written. Then add at most two lines of your
-own: the single condition for acquittal you would start with, and the path to the full trial.
+own: the single condition for acquittal you would start with, and the path to the full trial. The
+verdict also names `figures/maths.md`: if you mention a number to the user, it comes from there.
 
 Rules for you, the clerk:
 

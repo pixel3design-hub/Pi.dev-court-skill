@@ -49,6 +49,12 @@ verdict. The original is MIT-licensed, and so is this port.
   request to reorganise. `court.py dismiss` writes `.court/DISMISSED.md` and leaves a marker that
   `court.py init` refuses to cross, and `init` also rejects a case file with no number, cost, date or
   result in it unless the caller passes `--force`. The original opened the trial straight away.
+- **Arithmetic is a phase, not prose.** A math-expert sub-agent works out which calculations the case
+  needs, writes a script for this case (`figures/model.py`), runs it, and publishes the results and the
+  inputs it had to assume as missing (`figures/maths.md`). Everyone else quotes that file and is told not
+  to compute; the prosecutor and the defense can re-run the script to attack it. Nothing is hardcoded,
+  because the calculation a case needs is not knowable in advance. The original left arithmetic in the
+  prose.
 - **Parallel by design.** The whole phase (2 openings, 2 rebuttals, 12 jurors) is launched in a single
   message as foreground agents, so a full trial is 4 blocking rounds and roughly two minutes. The
   original launched in waves of six, which serialized the jury.
@@ -100,9 +106,10 @@ The jury is made of Pi sub-agents, so the `@tintinweb/pi-subagents` extension ha
 | `--quick` | 6 jurors. |
 | `--seed S` | Fixes which jurors sit on a smaller jury. |
 
-A full trial is 17 sub-agent calls (2 openings, 2 rebuttals, 12 jurors, 1 judge); `--quick` is 11.
-They run in parallel, one round per phase, so a full trial is 4 blocking rounds: the wall clock is
-about the slowest agent in each round, not the sum of 17.
+A full trial is 18 sub-agent calls (1 math pass, 2 openings, 2 rebuttals, 12 jurors, 1 judge);
+`--quick` is 12.
+They run in parallel, one round per phase, so a full trial is 5 blocking rounds: the wall clock is
+about the slowest agent in each round, not the sum of 18.
 Every sub-agent counts toward your model usage, so start with `--quick` if you are near your limit.
 
 See `examples/candles/VERDICT.md` for a real (3-juror) trial: "Quit my job as a nurse to sell
@@ -127,7 +134,10 @@ The case is read as a filing before any sub-agent runs, and `court.py` enforces 
 
 `skills/court/court.py` does the bookkeeping: it weighs the filing (`plan`, `dismiss`), opens the trial,
 writes one brief per sub-agent, checks that every output exists, counts the votes and renders the
-verdict. The orchestrator decides which of those to run, but it cannot open a trial on a case with no
+verdict. The first phase is `figures`: a math-expert sub-agent decides which calculations this case
+needs, writes a script for this case only, runs it, and leaves `figures/maths.md` with every figure, the
+expression and the value. Every other brief is told to quote that file and never compute.
+The orchestrator decides which of those to run, but it cannot open a trial on a case with no
 evidence: `dismiss` leaves a marker that `init` refuses, and `init` itself rejects a case file with no
 number, cost, date or result in it unless it is passed `--force`. The orchestrating agent only
 orchestrates: it never argues a side, never votes and never edits the verdict. The jurors are in
@@ -139,7 +149,7 @@ python3 court.py dismiss --reason thin|scattered --note "..."   # write the dism
 python3 court.py dismiss --clear                            # allow a trial again
 python3 court.py init    --case-file .court/case.md [--jury N | --quick] [--seed S] [--force]
 python3 court.py next                                       # what phase is next
-python3 court.py prompts <opening|rebuttal|jury|judge>      # write briefs, list the jobs
+python3 court.py prompts <figures|opening|rebuttal|jury|judge>   # write briefs, list the jobs
 python3 court.py check   <phase>                            # which outputs are still missing
 python3 court.py tally
 python3 court.py render                                     # VERDICT.md

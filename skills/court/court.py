@@ -17,7 +17,7 @@ original court skill by Alex Chen: https://github.com/alexyc9381/court-skill
     python3 court.py tally
     python3 court.py render
 
-Phases, in order: opening, rebuttal, jury, judge.
+Phases, in order: figures, opening, rebuttal, jury, judge.
 """
 import argparse
 import json
@@ -30,7 +30,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = ".court"
 LATEST = os.path.join(ROOT, "LATEST")
-PHASES = ["opening", "rebuttal", "jury", "judge"]
+PHASES = ["figures", "opening", "rebuttal", "jury", "judge"]
 DEFAULT_JURY = 12
 QUICK_JURY = 6
 CREDIT = ("_Made with [court](https://github.com/pixel3design-hub/Pi.dev-court-skill) by Cristiano Gariboldo (Pixel3Design), based on [the original court skill](https://github.com/alexyc9381/court-skill)._")
@@ -87,7 +87,9 @@ def jury_size(args):
 def jobs(state, phase):
     """Each job: id, brief path, output path."""
     d = state["dir"]
-    if phase in ("opening", "rebuttal"):
+    if phase == "figures":
+        ids = ["maths"]
+    elif phase in ("opening", "rebuttal"):
         ids = ["prosecution", "defense"]
     elif phase == "jury":
         ids = ["juror-%02d" % (i + 1) for i in range(len(state["jury"]))]
@@ -127,6 +129,37 @@ def brief_text(state, phase, job):
             "facts, numbers, quotes or sources. Where the record is silent, say what is missing and why it "
             "matters. Write your answer to exactly this file and nothing else:\n\n    %s\n\n"
             "The charge: %s\n\nThe case file: %s\n\n" % (job["output"], CHARGE, case))
+    if phase == "figures":
+        model = _abs(state, "figures", "model.py")
+        return head + (
+            "You are the court's MATH EXPERT, the only part of this trial allowed to compute. Your job: work "
+            "out which calculations the charge needs, then do them in code.\n\n"
+            "1. Read the case file and list the numbers a jury would have to derive to judge it. Decide from "
+            "this case; there is no checklist. Unit margin, monthly profit, runway, break-even volume, growth "
+            "rate, payback, whatever it is.\n"
+            "2. Write ONE stdlib-only Python script to %s. Every input comes from the case file, with the "
+            "source line beside it in a comment. No network, no invented inputs, no rounding that flatters the "
+            "case. It prints one `label: value` line per figure, and exits non-zero naming the input when a "
+            "required input is not in the record.\n"
+            "3. Run it (python3, or `uv run python` if that is blocked) and paste its real output. If it exits "
+            "non-zero, fix the script; never fill the gap.\n"
+            "4. Write this file, and only this file:\n\n    %s\n\n"
+            "Shape:\n\n"
+            "    # The arithmetic\n\n"
+            "    | figure | expression | value | why it matters |\n"
+            "    |---|---|---|---|\n"
+            "    | margin per candle | 18 - 6 | 12 | what one sale is worth before fees |\n\n"
+            "    Script: %s\n"
+            "    Re-run: python3 %s\n\n"
+            "    ## Not in the record\n"
+            "    - <input the case does not give, and the figure it blocks>\n\n"
+            "Every value in the table is the script's output, never your own arithmetic. If the case needs "
+            "no calculation at all, say so in one line and stop: that is a valid answer.\n"
+            % (model, job["output"], model, model))
+    head += ("Derived numbers: the court's arithmetic is in %s and the script that produced it is %s. Quote "
+             "figures from there. If a number you need is not there, say the record does not support it. Do "
+             "not compute anything yourself; you may run the script to check it.\n\n"
+             % (_abs(state, "figures", "maths.md"), _abs(state, "figures", "model.py")))
     if phase == "opening":
         if job["id"] == "prosecution":
             return head + (
@@ -242,8 +275,11 @@ def render(state):
              "## How the jury voted", "", "| Juror | Vote | Why |", "|---|---|---|"]
     for r in t["jurors"]:
         lines.append("| %s | %s | %s |" % (r["juror"], r["vote"], r["reason"].replace("|", "/")))
-    lines += ["", judgment, "",
-              "_The full trial is in %s: the opening statements, the rebuttals and every juror's vote._"
+    lines += ["", judgment, ""]
+    if os.path.exists(_abs(state, "figures", "maths.md")):
+        lines += ["_The arithmetic: %s, recomputable with `python3 %s`._"
+                  % (_abs(state, "figures", "maths.md"), _abs(state, "figures", "model.py")), ""]
+    lines += ["_The full trial is in %s: the opening statements, the rebuttals and every juror's vote._"
               % os.path.abspath(state["dir"]), "", CREDIT]
     text = "\n".join(lines) + "\n"
     with open(os.path.join(state["dir"], "VERDICT.md"), "w") as f:
@@ -255,9 +291,9 @@ def render(state):
 
 def cmd_plan(args):
     n = jury_size(args)
-    calls = 2 + 2 + n + 1
-    print("jury of %d: 2 opening statements, 2 rebuttals, %d jurors, 1 judge = %d sub-agent calls"
-          % (n, n, calls))
+    calls = 1 + 2 + 2 + n + 1
+    print("jury of %d: 1 math pass, 2 opening statements, 2 rebuttals, %d jurors, 1 judge = %d "
+          "sub-agent calls" % (n, n, calls))
 
 
 def cmd_dismiss(args):
@@ -302,7 +338,7 @@ def cmd_init(args):
     rng = random.Random(seed)
     jury = jurors[:] if n == len(jurors) else rng.sample(jurors, n)
     rd = os.path.join(ROOT, time.strftime("%Y%m%d-%H%M%S"))
-    for sub in ("briefs", "opening", "rebuttal", "jury", "judge"):
+    for sub in ("briefs", "figures", "opening", "rebuttal", "jury", "judge"):
         os.makedirs(os.path.join(rd, sub), exist_ok=True)
     with open(os.path.join(rd, "case.md"), "w") as f:
         f.write(case + "\n")

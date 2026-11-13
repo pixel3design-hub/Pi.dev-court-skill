@@ -1,3 +1,4 @@
 .court/
 __pycache__/
 .DS_Store
+.agents/
